@@ -3,6 +3,7 @@
 const { login } = require('@neoaz07/nkxica');
 
 const fs   = require('fs');
+const http = require('http');
 const cron = require('node-cron');
 const axios = require('axios');
 const config = require('../config');
@@ -29,10 +30,32 @@ class InstagramBot {
 
   // ── Boot ──────────────────────────────────────────────────────────────
 
+  startHealthServer() {
+    const port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ok',
+        bot: config.BOT_NAME,
+        version: config.BOT_VERSION,
+        uptime: Math.floor(process.uptime())
+      }));
+    });
+    server.listen(port, '0.0.0.0', () => {
+      logger.info(`Health server listening on port ${port}`);
+    });
+    server.on('error', err => {
+      logger.error('Health server error', { error: err.message });
+    });
+    return server;
+  }
+
   async start() {
     try {
       Banner.display();
       logger.info('Starting Instagram Bot...');
+
+      this.startHealthServer();
 
       const database = require('../utils/database');
       await database.ready;
