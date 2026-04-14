@@ -164,7 +164,7 @@ module.exports = {
       }
 
       const username = userInfo.username || 'Unknown';
-      const fullName = userInfo.full_name || 'N/A';
+      const fullName = userInfo.fullName || 'N/A';
 
       // Add admin to config
       const success = ConfigManager.addAdmin(userIdToAdd);

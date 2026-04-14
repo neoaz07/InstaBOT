@@ -12,85 +12,74 @@ module.exports = {
 
   async run({ api, event, args, bot, logger }) {
     try {
-      // If no username provided, return sender's UID
       if (args.length === 0) {
-        const senderUID = event.userId || event.senderID;
-        
-        if (!senderUID) {
-          return api.sendMessage('❌ Could not determine your User ID.', event.threadId);
-        }
-        
-        const message = `👤 Your User ID:\n\n🆔 ${senderUID}`;
-        return api.sendMessage(message, event.threadId);
+        const senderUID = event.senderID;
+        return api.sendMessage(`👤 Your User ID:\n\n🆔 ${senderUID}`, event.threadId);
       }
-      
-      // Get username from arguments
+
       const username = args[0].replace('@', '').trim();
-      
+
       if (!username) {
         return api.sendMessage('❌ Please provide a valid username!\n\nUsage: uid <username>', event.threadId);
       }
-      
-      // Send searching message
+
       await api.sendMessage(`🔍 Searching for user: @${username}...`, event.threadId);
-      
-      // Fetch user info by username
+
       try {
         const userInfo = await bot.ig.getUserInfoByUsername(username);
-        
+
         if (!userInfo) {
           return api.sendMessage(`❌ User @${username} not found!`, event.threadId);
         }
-        
-        const userId = userInfo.pk || userInfo.id || userInfo.user_id;
-        const fullName = userInfo.full_name || 'N/A';
-        const isPrivate = userInfo.is_private ? '🔒 Private' : '🔓 Public';
-        const isVerified = userInfo.is_verified ? '✅ Verified' : '';
-        const followerCount = userInfo.follower_count ? userInfo.follower_count.toLocaleString() : 'N/A';
-        const followingCount = userInfo.following_count ? userInfo.following_count.toLocaleString() : 'N/A';
-        
-        const message = `👤 User Information:\n\n` +
+
+        const userId      = userInfo.userID || userInfo.userId;
+        const fullName    = userInfo.fullName || 'N/A';
+        const isPrivate   = userInfo.isPrivate ? '🔒 Private' : '🔓 Public';
+        const isVerified  = userInfo.isVerified ? '✅ Verified' : '';
+        const followers   = userInfo.followerCount ? userInfo.followerCount.toLocaleString() : 'N/A';
+        const following   = userInfo.followingCount ? userInfo.followingCount.toLocaleString() : 'N/A';
+
+        const message =
+          `👤 User Information:\n\n` +
           `📝 Username: @${username}\n` +
           `🆔 User ID: ${userId}\n` +
           `👨‍💼 Full Name: ${fullName}\n` +
           `${isPrivate} ${isVerified}\n` +
-          `👥 Followers: ${followerCount}\n` +
-          `➡️ Following: ${followingCount}`;
-        
+          `👥 Followers: ${followers}\n` +
+          `➡️ Following: ${following}`;
+
         return api.sendMessage(message, event.threadId);
-        
+
       } catch (searchError) {
-        // If direct search fails, try searching users
         try {
           const searchResults = await bot.ig.searchUsers(username);
-          
+
           if (!searchResults || searchResults.length === 0) {
             return api.sendMessage(`❌ User @${username} not found!`, event.threadId);
           }
-          
-          // Get the first match
-          const user = searchResults[0];
-          const userId = user.pk || user.id || user.user_id;
-          const fullName = user.full_name || 'N/A';
+
+          const user         = searchResults[0];
+          const userId       = user.userID || user.userId;
+          const fullName     = user.fullName || 'N/A';
           const actualUsername = user.username || username;
-          const isPrivate = user.is_private ? '🔒 Private' : '🔓 Public';
-          const isVerified = user.is_verified ? '✅ Verified' : '';
-          
-          let message = `👤 User Information:\n\n` +
+          const isPrivate    = user.isPrivate ? '🔒 Private' : '🔓 Public';
+          const isVerified   = user.isVerified ? '✅ Verified' : '';
+
+          let message =
+            `👤 User Information:\n\n` +
             `📝 Username: @${actualUsername}\n` +
             `🆔 User ID: ${userId}\n` +
             `👨‍💼 Full Name: ${fullName}\n` +
             `${isPrivate} ${isVerified}`;
-          
-          // Add other matches if found
+
           if (searchResults.length > 1) {
             message += `\n\n💡 Found ${searchResults.length} matches. Showing first result.`;
           }
-          
+
           return api.sendMessage(message, event.threadId);
-          
+
         } catch (error2) {
-          logger.error('Error in uid command (search fallback)', { error: error2.message, stack: error2.stack });
+          logger.error('Error in uid command (search fallback)', { error: error2.message });
           return api.sendMessage(
             `❌ Failed to find user @${username}\n\n` +
             `Possible reasons:\n` +
@@ -102,12 +91,11 @@ module.exports = {
           );
         }
       }
-      
+
     } catch (error) {
       logger.error('Error in uid command', { error: error.message, stack: error.stack });
       return api.sendMessage(
-        `❌ An error occurred while fetching user ID.\n\n` +
-        `Error: ${error.message}`,
+        `❌ An error occurred while fetching user ID.\n\nError: ${error.message}`,
         event.threadId
       );
     }
