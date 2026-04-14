@@ -154,9 +154,13 @@ module.exports = {
         return;
       }
 
-      // Permission check
+      // Permission check — fetch threadInfo for role-1 (group admin) checks
       const requiredRole = command.config.role || 0;
-      const hasPermission = await PermissionManager.hasPermission(event.senderID, requiredRole);
+      let threadInfo = null;
+      if (requiredRole === 1) {
+        threadInfo = await bot.getThreadInfo(event.threadId).catch(() => null);
+      }
+      const hasPermission = await PermissionManager.hasPermission(event.senderID, requiredRole, threadInfo);
       if (!hasPermission) {
         if (!config.HIDE_NOTI.needRoleToUseCmd) {
           const roleName = PermissionManager.getRoleName(requiredRole);

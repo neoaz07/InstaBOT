@@ -179,11 +179,17 @@ class InstagramBot {
         return;
       }
 
-      if (!event || event.type !== 'message') return;
+      if (!event) return;
 
-      this.handleMessage(event).catch(error => {
-        logger.error('Error handling message', { error: error.message });
-      });
+      if (event.type === 'message') {
+        this.handleMessage(event).catch(error => {
+          logger.error('Error handling message', { error: error.message });
+        });
+      } else if (event.type === 'event') {
+        this.handleThreadEvent(event).catch(error => {
+          logger.error('Error handling thread event', { error: error.message });
+        });
+      }
     });
 
     // Periodic MQTT listener restart
@@ -240,6 +246,74 @@ class InstagramBot {
       await this.eventLoader.handleEvent('message', normalizedEvent);
     } catch (error) {
       logger.error('Error in handleMessage', { error: error.message, stack: error.stack });
+    }
+  }
+
+  // ── Thread-event routing ──────────────────────────────────────────────
+
+  async handleThreadEvent(event) {
+    try {
+      const threadID = event.threadID;
+      const logType  = event.logMessageType || '';
+
+      if (logType === 'log:subscribe') {
+        const added = event.logMessageData?.addedParticipants || [];
+
+        // Check if the bot itself was added
+        const botAdded = added.some(p =>
+          String(p.userFbId || p.userId || '') === String(this.userID)
+        );
+
+        if (botAdded) {
+          // Bot was added to a new thread
+          await this.eventLoader.handleEvent('bot_added', {
+            threadID,
+            threadId: threadID,
+            addedBy: event.author || event.senderID || '',
+            addedParticipants: added,
+            timestamp: event.timestamp || Date.now()
+          });
+        } else {
+          // Regular member(s) joined
+          await this.eventLoader.handleEvent('gc_join', {
+            threadID,
+            threadId: threadID,
+            addedParticipants: added,
+            addedBy: event.author || event.senderID || '',
+            timestamp: event.timestamp || Date.now()
+          });
+        }
+
+      } else if (logType === 'log:unsubscribe') {
+        const leftUserId = event.logMessageData?.leftParticipantFbId
+          || event.logMessageData?.leftParticipantUserFbId
+          || '';
+
+        await this.eventLoader.handleEvent('gc_leave', {
+          threadID,
+          threadId: threadID,
+          leftUserId: String(leftUserId),
+          timestamp: event.timestamp || Date.now()
+        });
+      }
+    } catch (error) {
+      logger.error('Error in handleThreadEvent', { error: error.message });
+    }
+  }
+
+  // ── Thread-info cache (for role-1 group admin checks) ─────────────────
+
+  _threadInfoCache = new Map();
+
+  async getThreadInfo(threadID) {
+    const cached = this._threadInfoCache.get(String(threadID));
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) return cached.data;
+    try {
+      const info = await this.api.getThread(threadID);
+      this._threadInfoCache.set(String(threadID), { data: info, ts: Date.now() });
+      return info;
+    } catch {
+      return null;
     }
   }
 
