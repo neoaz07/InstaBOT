@@ -101,7 +101,8 @@ module.exports = {
 
       // Command not found
       if (!command) {
-        if (!config.HIDE_NOTI.commandNotFound) {
+        // Only notify when the user explicitly typed the prefix — never for no-prefix messages
+        if (startsWithPrefix && !config.HIDE_NOTI.commandNotFound) {
           const allNames = commandLoader.getAllCommandNames();
           const closest  = this.findClosestCommand(commandName, allNames);
           let msg = `❌ Unknown command: "${commandName}"\n\n`;
