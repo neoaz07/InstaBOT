@@ -159,6 +159,6 @@
     "maxRequestsPerMinute": 50,
     "requestCooldownMs": 60000,
     "errorCacheTtlMs": 300000,
-    "notes": "nkx-fca options — see node_modules/@neoaz07/nkxica/README.md for full documentation"
+    "notes": "nkxica options — see node_modules/@neoaz07/nkxica/README.md for full documentation"
   }
 }
